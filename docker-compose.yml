@@ -1,173 +1,173 @@
 version: "3.3"
 
 volumes:
-    shared-workspace-project:
-    project_hadoop_datanode1:
-    project_hadoop_datanode2:
-    project_hadoop_datanode3:
-    project_hadoop_namenode:
-    project_hadoop_historyserver:
-    project_data:
-
+    shared-workspace:
+    hadoop_datanode1:
+    hadoop_datanode2:
+    hadoop_datanode3:
+    hadoop_namenode:
+    hadoop_historyserver:
 networks:
-    project-net:
+    spark-net:
         driver: bridge
 
 services:
-  project-namenode:
+  namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    container_name: project-namenode
+    container_name: namenode
     networks:
-      - "project-net"
+      - "spark-net"
     ports:
-      - 10070:9870   # 避免与 cca3 冲突，改变端口
-      - 10000:9000   # 避免与 cca3 冲突
+      - 80:9870
+      - 9000:9000
     volumes:
-      - project_hadoop_namenode:/hadoop/dfs/name
-      - ./data:/home/data  # 挂载你的数据目录
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./nbs:/home/nbs
     environment:
-      - CLUSTER_NAME=project_cluster
+      - CLUSTER_NAME=test
     env_file:
       - ./hadoop.env
 
-  project-resourcemanager:
+  resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
-    container_name: project-resourcemanager
+    container_name: resourcemanager
     depends_on:
-      - project-namenode
-      - project-datanode1
-      - project-datanode2
-      - project-datanode3
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
     networks:
-      - "project-net"
+      - "spark-net"
     ports:
-      - 10089:8088  # 避免与 cca3 冲突
+      - 8089:8088
     env_file:
       - ./hadoop.env
 
-  project-historyserver:
+  historyserver:
     image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
-    container_name: project-historyserver
+    container_name: historyserver
     depends_on:
-      - project-namenode
-      - project-datanode1
-      - project-datanode2
-      - project-datanode3
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
     networks:
-      - "project-net"
+      - "spark-net"
     volumes:
-      - project_hadoop_historyserver:/hadoop/yarn/timeline
+      - hadoop_historyserver:/hadoop/yarn/timeline
     env_file:
       - ./hadoop.env
 
-  project-nodemanager1:
+  nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
-    container_name: project-nodemanager
+    container_name: nodemanager
     depends_on:
-      - project-namenode
-      - project-datanode1
-      - project-datanode2
-      - project-datanode3
+      - namenode
+      - datanode1
+      - datanode2
+      - datanode3
     networks:
-      - "project-net"
+      - "spark-net"
     env_file:
       - ./hadoop.env
 
-  project-datanode1:
+  datanode1:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: project-datanode1
+    container_name: datanode1
     depends_on:
-      - project-namenode
+      - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     volumes:
-      - project_hadoop_datanode1:/hadoop/dfs/data
+      - hadoop_datanode1:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
 
-  project-datanode2:
+  datanode2:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: project-datanode2
+    container_name: datanode2
     depends_on:
-      - project-namenode
+      - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     volumes:
-      - project_hadoop_datanode2:/hadoop/dfs/data
+      - hadoop_datanode2:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
 
-  project-datanode3:
+  datanode3:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: project-datanode3
+    container_name: datanode3
     depends_on:
-      - project-namenode
+      - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     volumes:
-      - project_hadoop_datanode3:/hadoop/dfs/data
+      - hadoop_datanode3:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
 
-  project-spark-master:
+  spark-master:
     image: bde2020/spark-master:3.0.0-hadoop3.2
-    container_name: project-spark-master
+    container_name: spark-master
     depends_on:
-        - project-namenode
+        - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     ports:
-        - "18080:8080"  # 避免与 cca3 冲突
-        - "17077:7077"  # 避免与 cca3 冲突
+        - "8080:8080"
+        - "7077:7077"
     environment:
         - INIT_DAEMON_STEP=setup_spark
-        - NAMENODE_HOSTNAME=project-namenode
+        - NAMENODE_HOSTNAME=namenode
   
-  project-spark-worker-1:
+  spark-worker-1:
     image: bde2020/spark-worker:3.0.0-hadoop3.2
-    container_name: project-spark-worker-1
+    container_name: spark-worker-1
     depends_on:
-        - project-spark-master
-        - project-namenode
+        - spark-master
+        - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     ports:
-        - "18081:8081"  # 避免与 cca3 冲突
+        - "8081:8081"
     environment:
-        - "SPARK_MASTER=spark://project-spark-master:7077"            
+        - "SPARK_MASTER=spark://spark-master:7077"            
         - SPARK_WORKER_CORES=1
         - SPARK_WORKER_MEMORY=512m
-        - NAMENODE_HOSTNAME=project-namenode
+        - NAMENODE_HOSTNAME=namenode
 
-  project-spark-worker-2:
+  spark-worker-2:
     image: bde2020/spark-worker:3.0.0-hadoop3.2
-    container_name: project-spark-worker-2
+    container_name: spark-worker-2
     depends_on:
-        - project-spark-master
-        - project-namenode
+        - spark-master
+        - namenode
     networks:
-        - "project-net"
+        - "spark-net"
     ports:
-        - "18082:8082"  # 避免与 cca3 冲突
+        - "8082:8082"
     environment:
-        - "SPARK_MASTER=spark://project-spark-master:7077"            
+        - "SPARK_MASTER=spark://spark-master:7077"            
         - SPARK_WORKER_CORES=1
         - SPARK_WORKER_MEMORY=512m
-        - NAMENODE_HOSTNAME=project-namenode
+        - NAMENODE_HOSTNAME=namenode
   
-  project-jupyter-notebook:
-    container_name: project-jupyternb
-    image: jupyter/all-spark-notebook:42f4c82a07ff
-    depends_on:
-        - project-spark-master
-    expose:
-        - "18888"  # 避免与 cca3 冲突
-    networks:
-        - "project-net"
-    user: root
-    ports:
-        - "18888:8888"  # 避免与 cca3 冲突
-    volumes:
-        - ./data:/home/jovyan/work/data  # 挂载 data 文件夹
-        - ./events:/tmp/spark-events
-    command: bash -c "pip install gdown faiss-cpu && cp /home/jovyan/work/data/cardio_train.csv /home/jovyan/work/data && start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
+    jupyter-notebook:
+        container_name: jupyternb
+        image: jupyter/all-spark-notebook:42f4c82a07ff
+        depends_on:
+            - spark-master
+        expose:
+            - "8888"
+        networks:
+            - "spark-net"
+        user: root
+        ports:
+            - "8888:8888"
+        volumes:
+            - ./nbs:/home/jovyan/work/nbs
+            - ./events:/tmp/spark-events
+        command: bash -c "start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
+
+ 
