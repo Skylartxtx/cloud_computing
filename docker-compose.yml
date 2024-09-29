@@ -153,21 +153,21 @@ services:
         - SPARK_WORKER_MEMORY=512m
         - NAMENODE_HOSTNAME=namenode
   
-    jupyter-notebook:
-        container_name: jupyternb
-        image: jupyter/all-spark-notebook:42f4c82a07ff
-        depends_on:
-            - spark-master
-        expose:
-            - "8888"
-        networks:
-            - "spark-net"
-        user: root
-        ports:
-            - "8888:8888"
-        volumes:
-            - ./nbs:/home/jovyan/work/nbs
-            - ./events:/tmp/spark-events
-        command: bash -c "start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
+  jupyter-notebook:
+    container_name: jupyternb
+    image: jupyter/all-spark-notebook:42f4c82a07ff
+    depends_on:
+        - spark-master
+    expose:
+        - "8888"
+    networks:
+        - "spark-net"
+    user: root
+    ports:
+        - "8888:8888"
+    volumes:
+        - ./nbs:/home/jovyan/work/nbs
+        - ./events:/tmp/spark-events
+    command: bash -c "start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
 
  
