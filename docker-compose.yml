@@ -1,15 +1,15 @@
 version: "3.3"
 
 volumes:
-    project_shared_workspace:
-    project_hadoop_datanode1:
-    project_hadoop_datanode2:
-    project_hadoop_datanode3:
-    project_hadoop_namenode:
-    project_hadoop_historyserver:
+    project_namenode:
+    project_datanode1:
+    project_datanode2:
+    project_datanode3:
+    project_historyserver:
+    project_data:
 
 networks:
-    project-spark-net:
+    project-net:
         driver: bridge
 
 services:
@@ -17,17 +17,17 @@ services:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: project_namenode
     networks:
-      - "project-spark-net"
+      - "project-net"
     ports:
-      - 50070:9870  # HDFS Web UI (调整为 50070 以避免与 cca3 冲突)
-      - 9001:9000   # HDFS 服务端口 (调整为 9001)
+      - 9871:9870  # 修改后的NameNode Web UI端口，避免与cca3冲突
+      - 9001:9000  # 修改后的NameNode HDFS端口，避免与cca3冲突
     volumes:
-      - project_hadoop_namenode:/hadoop/dfs/name
-      - ./project:/home/project
+      - project_namenode:/hadoop/dfs/name
+      - ./data:/home/data
     environment:
-      - CLUSTER_NAME=project_cluster
+      - CLUSTER_NAME=project-cluster
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
@@ -38,11 +38,11 @@ services:
       - datanode2
       - datanode3
     networks:
-      - "project-spark-net"
+      - "project-net"
     ports:
-      - 8090:8088   # ResourceManager UI (调整为 8090)
+      - 8090:8088  # 修改后的ResourceManager端口，避免与cca3冲突
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   historyserver:
     image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
@@ -53,11 +53,11 @@ services:
       - datanode2
       - datanode3
     networks:
-      - "project-spark-net"
+      - "project-net"
     volumes:
-      - project_hadoop_historyserver:/hadoop/yarn/timeline
+      - project_historyserver:/hadoop/yarn/timeline
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
@@ -68,9 +68,9 @@ services:
       - datanode2
       - datanode3
     networks:
-      - "project-spark-net"
+      - "project-net"
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   datanode1:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -78,11 +78,11 @@ services:
     depends_on:
       - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     volumes:
-      - project_hadoop_datanode1:/hadoop/dfs/data
+      - project_datanode1:/hadoop/dfs/data
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   datanode2:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -90,11 +90,11 @@ services:
     depends_on:
       - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     volumes:
-      - project_hadoop_datanode2:/hadoop/dfs/data
+      - project_datanode2:/hadoop/dfs/data
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   datanode3:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -102,72 +102,70 @@ services:
     depends_on:
       - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     volumes:
-      - project_hadoop_datanode3:/hadoop/dfs/data
+      - project_datanode3:/hadoop/dfs/data
     env_file:
-      - ./hadoop.env
+      - ./hadoop_project.env
 
   spark-master:
     image: bde2020/spark-master:3.0.0-hadoop3.2
     container_name: project_spark-master
     depends_on:
-      - namenode
+        - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     ports:
-      - "8083:8080"  # Spark Master UI (调整为 8083)
-      - "7078:7077"  # Spark Master 端口 (调整为 7078)
+        - "8083:8080"  # Spark Master Web UI端口，避免与cca3冲突
+        - "7078:7077"  # Spark Master通信端口
     environment:
-      - INIT_DAEMON_STEP=setup_spark
-      - NAMENODE_HOSTNAME=project_namenode
-
+        - INIT_DAEMON_STEP=setup_spark
+        - NAMENODE_HOSTNAME=project_namenode
+  
   spark-worker-1:
     image: bde2020/spark-worker:3.0.0-hadoop3.2
     container_name: project_spark-worker-1
     depends_on:
-      - spark-master
-      - namenode
+        - spark-master
+        - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     ports:
-      - "8084:8081"  # Spark Worker 1 UI (调整为 8084)
+        - "8084:8081"  # Spark Worker 1 Web UI端口，避免与cca3冲突
     environment:
-      - "SPARK_MASTER=spark://project_spark-master:7078"
-      - SPARK_WORKER_CORES=1
-      - SPARK_WORKER_MEMORY=512m
-      - NAMENODE_HOSTNAME=project_namenode
+        - "SPARK_MASTER=spark://project_spark-master:7077"            
+        - SPARK_WORKER_CORES=1
+        - SPARK_WORKER_MEMORY=512m
+        - NAMENODE_HOSTNAME=project_namenode
 
   spark-worker-2:
     image: bde2020/spark-worker:3.0.0-hadoop3.2
     container_name: project_spark-worker-2
     depends_on:
-      - spark-master
-      - namenode
+        - spark-master
+        - namenode
     networks:
-      - "project-spark-net"
+        - "project-net"
     ports:
-      - "8085:8082"  # Spark Worker 2 UI (调整为 8085)
+        - "8085:8082"  # Spark Worker 2 Web UI端口，避免与cca3冲突
     environment:
-      - "SPARK_MASTER=spark://project_spark-master:7078"
-      - SPARK_WORKER_CORES=1
-      - SPARK_WORKER_MEMORY=512m
-      - NAMENODE_HOSTNAME=project_namenode
-
+        - "SPARK_MASTER=spark://project_spark-master:7077"            
+        - SPARK_WORKER_CORES=1
+        - SPARK_WORKER_MEMORY=512m
+        - NAMENODE_HOSTNAME=project_namenode
+  
   jupyter-notebook:
-    container_name: project_jupyter
+    container_name: project_jupyternb
     image: jupyter/all-spark-notebook:42f4c82a07ff
     depends_on:
-      - spark-master
+        - spark-master
     expose:
-      - "8889"
+        - "8889"  # 修改后的Jupyter端口，避免与cca3冲突
     networks:
-      - "project-spark-net"
+        - "project-net"
     user: root
     ports:
-      - "8889:8888"  # Jupyter Notebook (调整为 8889)
+        - "8889:8888"
     volumes:
-      - ./project:/home/jovyan/work/project
-      - ./events:/tmp/spark-events
-    command: bash -c "pip install gdown faiss-cpu && cp /home/jovyan/work/project/cardio_train.csv /home/jovyan/work/project && start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
-
+        - ./data:/home/jovyan/work/data  # 挂载你本地的data目录，包含cardio_train.csv
+    command: bash -c "pip install gdown faiss-cpu && cp /home/jovyan/work/data/cardio_train.csv /home/jovyan/work/data && start-notebook.sh --ip=0.0.0.0 --allow-root --NotebookApp.token=''"
